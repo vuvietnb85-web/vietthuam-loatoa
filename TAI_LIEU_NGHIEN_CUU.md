@@ -32,6 +32,14 @@ Tài liệu người dùng đề xuất phân tích PCM theo cửa sổ 20 ms, t
 
 Ứng dụng cần chạy trong ngữ cảnh HTTPS và người dùng phải cho phép micro. Tính năng thu dùng `getUserMedia` và Web Audio API; trình duyệt thử nghiệm trong môi trường xem trước không được cung cấp thiết bị micro, vì vậy đã xác nhận nhánh thông báo lỗi thân thiện nhưng không thể xác nhận chất lượng bản thu vật lý tại đây.
 
+## Nâng cấp theo LậpTrìnhWebAudioTOA.pdf
+
+Phiên bản nâng cấp chuyển dải mô phỏng về sát mô tả của ZH-5025BM: high-pass 250 Hz và low-pass 5,5 kHz, đều có Q = 0,707. Một peaking resonator tại 2 kHz, Q = 2,5, có cường độ tăng theo điều khiển **TOA Horn Saturation**; đường cong `WaveShaper` dùng hàm arctan đã chuẩn hóa để giữ năng lượng đầu ra. Thông số công bố của ZH-5025BM là đáp tuyến 200–6.500 Hz, SPL 108 dB và tính phù hợp cho thông báo công cộng. [4]
+
+Nhánh vang ngoài trời mới có delay 220 ms, feedback tối đa 0,35 và lọc low-pass 3 kHz trong vòng hồi tiếp, giúp tiếng phản xạ mờ dải cao dần. Sau khi ghép dry/wet, `DynamicsCompressorNode` đặt threshold -24 dB, ratio 6:1, attack 5 ms và release 100 ms để kiểm soát đỉnh. Offline render thêm tail phù hợp trước khi mã hóa WAV, nhờ đó tránh cụt tiếng vang ở cuối bản thu.
+
+Giao diện đã bổ sung canvas sóng âm thời gian thực cùng ba thông số thao tác trực tiếp: bão hòa họng loa (mặc định 70%), vang ngoài trời (50%) và ngưỡng VAD (-45 dB). Thu âm sử dụng `AudioContext` với `latencyHint: "interactive"`, `ScriptProcessorNode` 4096 mẫu theo hướng dẫn tài liệu và tắt echo cancellation/noise suppression/auto gain control để không để xử lý hệ điều hành làm thay đổi đặc tính âm thanh nguồn.
+
 ## Tài liệu tham khảo
 
 [1] [TOA, SC-630 — Paging Horn Speaker](https://www.toaelectronics.com/en-us/products/detail/sc630)
@@ -39,3 +47,5 @@ Tài liệu người dùng đề xuất phân tích PCM theo cửa sổ 20 ms, t
 [2] [TOA, HA-1030EN — Long Range Array Speaker](https://www.toaelectronics.com/en-us/products/detail/ha1030en)
 
 [3] [TOA Soundcheck, Loudspeakers and their specifications](https://www.toa.eu/service/soundcheck/loudspeakers-and-their-specifications)
+
+[4] [PT TOA Galva Prima Karya, ZH-5025BM Horn Speaker](https://toa.co.id/product/ZH-5025BM-Horn-Speaker)

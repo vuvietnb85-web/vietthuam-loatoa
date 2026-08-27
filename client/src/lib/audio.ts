@@ -1,5 +1,5 @@
 /**
- * Bản In Truyền Thanh — xử lý âm thanh cục bộ, ưu tiên lời đọc rõ và thao tác trên điện thoại.
+ * Bản In Truyền Thanh — DSP cục bộ cho chất âm loa nén: dải hẹp, cộng hưởng trung âm và vang ngoài trời.
  */
 
 export type TrimResult = {
@@ -10,10 +10,8 @@ export type TrimResult = {
 };
 
 export type PaEffectOptions = {
-  strength: number;
-  trimSilence: boolean;
-  thresholdDb: number;
-  holdMs: number;
+  saturation: number;
+  echo: number;
 };
 
 const clamp = (value: number, lower: number, upper: number) =>
@@ -31,8 +29,7 @@ export function formatDuration(seconds: number) {
 }
 
 /**
- * VAD RMS 20 ms với hysteresis: giữ một đoạn nói cho đến khi năng lượng thấp quá holdMs.
- * Pre/post-roll tránh nuốt phụ âm đầu cuối khi xuất tiếng Việt.
+ * VAD RMS 20 ms với hysteresis; có pre/post-roll để tránh nuốt phụ âm tiếng Việt đầu và cuối câu.
  */
 export function trimSilenceWithHysteresis(
   input: Float32Array,
@@ -70,19 +67,13 @@ export function trimSilenceWithHysteresis(
       }
       lastAudibleSample = frameEnd;
     } else if (speaking && frameEnd - lastAudibleSample >= holdSamples) {
-      segments.push({
-        start: segmentStart,
-        end: Math.min(input.length, lastAudibleSample + postRoll),
-      });
+      segments.push({ start: segmentStart, end: Math.min(input.length, lastAudibleSample + postRoll) });
       speaking = false;
     }
   }
 
   if (speaking) {
-    segments.push({
-      start: segmentStart,
-      end: Math.min(input.length, lastAudibleSample + postRoll),
-    });
+    segments.push({ start: segmentStart, end: Math.min(input.length, lastAudibleSample + postRoll) });
   }
 
   if (!segments.length) {
@@ -128,32 +119,40 @@ export function trimSilenceWithHysteresis(
   };
 }
 
-function makeSaturationCurve(amount: number) {
-  const length = 1024;
+/** Áp dụng đường cong arctan kiểu buồng nén; chuẩn hóa đầu ra để không làm yếu tín hiệu. */
+function makeHornSaturationCurve(saturation: number) {
+  const length = 44100;
   const curve = new Float32Array(length);
-  const drive = 1 + amount * 1.8;
-  const normalizer = Math.tanh(drive);
+  const k = 80 + clamp(saturation, 0, 100) * 4.2;
+  const deg = Math.PI / 180;
+  const normalizer = ((3 + k) * 20 * deg) / (Math.PI + k);
+
   for (let index = 0; index < length; index += 1) {
     const x = (index * 2) / (length - 1) - 1;
-    curve[index] = Math.tanh(x * drive) / normalizer;
+    const raw = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    curve[index] = raw / normalizer;
   }
   return curve;
 }
 
+/**
+ * Render offline cùng một đồ thị: HPF → LPF → cộng hưởng 2 kHz → WaveShaper → nhánh dry/wet
+ * → compressor. Phần đệm cuối giữ lại tail của mạng trễ ngoài trời thay vì cắt đột ngột.
+ */
 export async function applyPublicAddressEffect(
   source: Float32Array,
   sampleRate: number,
-  strength: number,
+  options: PaEffectOptions,
 ) {
   const AudioContextConstructor = window.OfflineAudioContext ||
     (window as typeof window & { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+  if (!AudioContextConstructor || !source.length) return source.slice();
 
-  if (!AudioContextConstructor || strength <= 0) {
-    return source.slice();
-  }
-
-  const normalizedStrength = clamp(strength / 100, 0, 1);
-  const offline = new AudioContextConstructor(1, source.length, sampleRate);
+  const saturation = clamp(options.saturation, 0, 100);
+  const echo = clamp(options.echo, 0, 100);
+  const echoTailSeconds = echo > 0 ? 1.35 : 0.06;
+  const renderLength = source.length + Math.ceil(sampleRate * echoTailSeconds);
+  const offline = new AudioContextConstructor(1, renderLength, sampleRate);
   const buffer = offline.createBuffer(1, source.length, sampleRate);
   buffer.copyToChannel(source, 0);
 
@@ -162,47 +161,60 @@ export async function applyPublicAddressEffect(
 
   const highPass = offline.createBiquadFilter();
   highPass.type = "highpass";
-  highPass.frequency.value = 210 + normalizedStrength * 115;
-  highPass.Q.value = 0.72;
-
-  const presence = offline.createBiquadFilter();
-  presence.type = "peaking";
-  presence.frequency.value = 2150;
-  presence.Q.value = 0.82;
-  presence.gain.value = 1.5 + normalizedStrength * 4.6;
-
-  const edgeControl = offline.createBiquadFilter();
-  edgeControl.type = "peaking";
-  edgeControl.frequency.value = 4650;
-  edgeControl.Q.value = 1.2;
-  edgeControl.gain.value = -normalizedStrength * 2.1;
+  highPass.frequency.value = 250;
+  highPass.Q.value = 0.707;
 
   const lowPass = offline.createBiquadFilter();
   lowPass.type = "lowpass";
-  lowPass.frequency.value = 11800 - normalizedStrength * 3500;
-  lowPass.Q.value = 0.76;
+  lowPass.frequency.value = 5500;
+  lowPass.Q.value = 0.707;
 
-  const compressor = offline.createDynamicsCompressor();
-  compressor.threshold.value = -18 - normalizedStrength * 7;
-  compressor.knee.value = 12;
-  compressor.ratio.value = 1.8 + normalizedStrength * 3.8;
-  compressor.attack.value = 0.004;
-  compressor.release.value = 0.12;
+  const resonator = offline.createBiquadFilter();
+  resonator.type = "peaking";
+  resonator.frequency.value = 2000;
+  resonator.Q.value = 2.5;
+  resonator.gain.value = 1.25 + saturation * 0.0675;
 
   const saturator = offline.createWaveShaper();
-  saturator.curve = makeSaturationCurve(normalizedStrength);
+  saturator.curve = makeHornSaturationCurve(saturation);
   saturator.oversample = "4x";
 
+  const delay = offline.createDelay(1.5);
+  delay.delayTime.value = 0.22;
+  const feedbackDamp = offline.createBiquadFilter();
+  feedbackDamp.type = "lowpass";
+  feedbackDamp.frequency.value = 3000;
+  feedbackDamp.Q.value = 0.707;
+  const feedback = offline.createGain();
+  feedback.gain.value = (echo / 100) * 0.35;
+  const dry = offline.createGain();
+  dry.gain.value = 0.72;
+  const wet = offline.createGain();
+  wet.gain.value = (echo / 100) * 0.32;
+
+  const compressor = offline.createDynamicsCompressor();
+  compressor.threshold.value = -24;
+  compressor.knee.value = 10;
+  compressor.ratio.value = 6;
+  compressor.attack.value = 0.005;
+  compressor.release.value = 0.1;
+
   const outputGain = offline.createGain();
-  outputGain.gain.value = 0.92;
+  outputGain.gain.value = 0.88;
 
   input.connect(highPass);
-  highPass.connect(presence);
-  presence.connect(edgeControl);
-  edgeControl.connect(lowPass);
-  lowPass.connect(compressor);
-  compressor.connect(saturator);
-  saturator.connect(outputGain);
+  highPass.connect(lowPass);
+  lowPass.connect(resonator);
+  resonator.connect(saturator);
+  saturator.connect(dry);
+  saturator.connect(delay);
+  delay.connect(feedbackDamp);
+  feedbackDamp.connect(feedback);
+  feedback.connect(delay);
+  delay.connect(wet);
+  dry.connect(compressor);
+  wet.connect(compressor);
+  compressor.connect(outputGain);
   outputGain.connect(offline.destination);
   input.start();
 
