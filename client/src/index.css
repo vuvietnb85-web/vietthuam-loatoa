@@ -109,3 +109,87 @@ h2 { font-size: clamp(28px, 7vw, 44px); line-height: .92; font-weight: 650; }.st
 @media (min-width:1024px) { .broadcast-shell { display:grid; grid-template-columns:minmax(390px,.93fr) minmax(530px,1.07fr); grid-template-rows:auto 1fr auto; min-height:100vh; }.app-header { grid-column:1 / -1; width:100%; }.script-section { width:100%; padding:46px clamp(36px,5vw,78px) 58px; align-self:start; }.record-section { width:100%; padding:46px clamp(36px,5vw,78px) 48px; }.record-section-head, .meter-panel, .record-controls { max-width:620px; }.method-note { grid-column:1 / -1; max-width:100%; padding:30px clamp(36px,5vw,78px); border-top:1px solid #d6cebe; }.app-footer { grid-column:1 / -1; }.script-field { min-height:232px; }.record-hero-art { width:62%; height:330px; }.privacy-stamp { margin-right:0; } }
 @media (prefers-reduced-motion: no-preference) { .script-section > *, .record-section > *, .method-note { animation:rise-in .42s cubic-bezier(.23,1,.32,1) both; }.record-section > *:nth-child(3) { animation-delay:.05s; }.record-section > *:nth-child(4) { animation-delay:.1s; }.record-section > *:nth-child(5) { animation-delay:.15s; } } @keyframes rise-in { from { opacity:0; transform:translateY(9px); } to { opacity:1; transform:translateY(0); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.001ms !important; transition-duration:.001ms !important; scroll-behavior:auto !important; } }
+
+/* 9:16 fixed edition — the stage is intentionally letterboxed on wide screens and never becomes a scroll surface. */
+html, body, #root { width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; }
+body { touch-action: none; -webkit-user-select: none; user-select: none; }
+textarea, button, audio { -webkit-user-select: auto; user-select: auto; }
+.broadcast-shell { display: grid; place-items: center; width: 100%; height: 100dvh; min-height: 0; overflow: hidden; background: #e8e0d1; }
+.portrait-stage { position: relative; display: flex; flex-direction: column; width: min(100vw, 56.25dvh); height: min(100dvh, 177.7778vw); min-width: 320px; min-height: 568px; max-width: 100vw; max-height: 100dvh; aspect-ratio: 9 / 16; overflow: hidden; background: var(--paper); }
+.app-header { flex: 0 0 auto; width: 100%; padding: 10px 16px 6px; }
+.brand-mark { width: 34px; height: 34px; }
+.brand-lockup { gap: 8px; }
+.brand-kicker { font-size: 7px; }
+.brand-name { font-size: 14px; }
+.privacy-stamp { padding: 6px 7px; font-size: 7px; }
+.script-section { flex: 0 0 27%; width: 100%; min-height: 0; padding: 9px 16px 10px; overflow: hidden; }
+.section-heading { align-items: flex-start; }
+.eyebrow { gap: 5px; margin-bottom: 5px; font-size: 7px; }
+h1 { max-width: 280px; font-size: clamp(26px, 7.8vw, 36px); line-height: .9; }
+.script-estimate { gap: 3px; font-size: 9px; padding-top: 13px; }
+.script-estimate svg { width: 12px; height: 12px; }
+.script-field-wrap { margin-top: 10px; box-shadow: 3px 3px 0 rgba(19,35,60,.1); }
+.script-field { min-height: 72px; height: 72px; padding: 9px 10px 4px; resize: none; font-size: 11px; line-height: 1.42; }
+.script-field-footer { padding: 5px 9px 6px; font-size: 8px; }
+.quiet-action { font-size: 8px; }
+.script-tip { margin-top: 7px; font-size: 8px; line-height: 1.25; }
+.record-section { flex: 1 1 auto; min-height: 0; width: 100%; padding: 14px 16px 10px; overflow: hidden; }
+.record-section::before { background-size: auto 100%; opacity: .13; }
+.record-hero-art { width: 58%; height: 178px; opacity: .42; }
+.record-section-head { min-height: 42px; }
+.eyebrow.light { margin-bottom: 5px; }
+h2 { font-size: clamp(22px, 6.2vw, 30px); line-height: .91; }
+.status-light { padding: 5px 6px; font-size: 6px; }
+.status-light span { width: 5px; height: 5px; }
+.meter-panel { margin-top: 11px; }
+.meter-label { margin-bottom: 4px; font-size: 7px; }
+.meter-label svg { width: 11px; height: 11px; }
+.meter-track { height: 7px; }
+.meter-numbers { margin-top: 3px; font-size: 6px; }
+.record-controls { gap: 17px; margin: 16px 0 14px; }
+.record-button { width: 67px; height: 67px; box-shadow: 0 0 0 5px rgba(230,83,59,.17), 3px 4px 0 rgba(0,0,0,.22); }
+.record-button svg { width: 24px; height: 24px; }
+.orbit-one { inset: -8px; }
+.orbit-two { inset: -14px; }
+.record-readout p { margin-bottom: 2px; font-size: 7px; }
+.record-readout strong { font-size: 34px; }
+.record-readout span { max-width: 190px; margin-top: 3px; font-size: 8px; line-height: 1.25; }
+.smart-stack { display: grid; gap: 7px; }
+.smart-card { display: flex; align-items: center; gap: 8px; min-height: 45px; padding: 8px 9px; background: rgba(255,253,247,.96); color: var(--ink); }
+.smart-card.noise-card { border-left: 4px solid var(--teal); }
+.smart-card.trim-card { border-left: 4px solid var(--yellow); }
+.smart-icon { display: grid; place-items: center; flex: 0 0 auto; width: 28px; height: 28px; background: #e0f5f0; color: #08796f; }
+.smart-card.trim-card .smart-icon { background: #fff1d6; color: #a76d11; }
+.smart-card .control-label { margin-bottom: 2px; font-size: 6px; }
+.smart-card strong { display: block; font-family: "Space Grotesk", sans-serif; font-size: 12px; letter-spacing: -.04em; line-height: 1; }
+.smart-card span { display: block; margin-top: 2px; color: #647084; font-size: 7px; line-height: 1.2; }
+.smart-card > b { margin-left: auto; color: #08796f; font-family: "Space Grotesk", sans-serif; font-size: 7px; letter-spacing: .08em; }
+.smart-card.trim-card > b { color: #a76d11; }
+.result-panel { margin-top: 9px; padding: 10px; box-shadow: 3px 4px 0 rgba(0,0,0,.17); }
+.result-ready { font-size: 7px; }
+.quiet-icon svg { width: 14px; height: 14px; }
+.audio-player { height: 28px; margin: 7px 0 4px; }
+.result-stats { gap: 4px 8px; font-size: 7px; }
+.result-actions { gap: 5px; margin-top: 8px; }
+.play-button, .download-button, .share-button { height: 31px; font-size: 8px; }
+.play-button svg, .download-button svg, .share-button svg { width: 13px; height: 13px; }
+.safety-note { gap: 5px; margin-top: 10px; font-size: 7px; line-height: 1.25; }
+.safety-note svg { width: 11px; height: 11px; }
+.retry-link { gap: 4px; margin-top: 7px; font-size: 7px; }
+.app-footer { flex: 0 0 auto; width: 100%; padding: 7px 16px 9px; font-size: 6px; }
+.method-note { display: none; }
+/* Prevent old wide-layout breakpoints from turning the fixed mobile stage into a grid. */
+@media (min-width: 720px) { .portrait-stage { min-width: 360px; min-height: 640px; } .script-section { flex-basis: 28%; padding: 13px 21px 12px; } .record-section { padding: 18px 21px 14px; } h1 { font-size: 37px; } h2 { font-size: 31px; } .script-field { height: 104px; min-height: 104px; font-size: 12px; } .record-button { width: 78px; height: 78px; } .record-readout strong { font-size: 40px; } .smart-card { min-height: 50px; } }
+@media (max-height: 640px) { .portrait-stage { min-height: 0; } .app-header { padding-top: 6px; padding-bottom: 3px; } .script-section { flex-basis: 26%; padding-top: 5px; } .script-field { height: 58px; min-height: 58px; } .script-tip { display: none; } .record-section { padding-top: 9px; } .record-controls { margin-top: 9px; margin-bottom: 8px; } .record-hero-art { height: 135px; } .smart-card { min-height: 39px; padding-top: 5px; padding-bottom: 5px; } .smart-icon { width: 24px; height: 24px; } .smart-card span { display: none; } .safety-note { margin-top: 6px; } }
+
+/* Wide-screen presentation remains a centered portrait instrument, not an accidental left-aligned phone column. */
+h1 em { color: var(--teal); }
+.app-header { position: relative; }
+.app-header::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: 0; border-bottom: 1px dashed rgba(19,35,60,.2); pointer-events: none; }
+.brand-mark { width: 38px; height: 38px; }
+@media (min-width: 1024px) {
+  .broadcast-shell { display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; place-items: center; background: #dcd4c5; }
+  .portrait-stage { grid-column: 1; grid-row: 1; box-shadow: 0 0 0 1px rgba(19,35,60,.25), 24px 0 0 -23px rgba(19,35,60,.18), -24px 0 0 -23px rgba(19,35,60,.1), 0 20px 50px rgba(19,35,60,.18); }
+  .app-header::after { left: 21px; right: 21px; }
+  .brand-mark { width: 40px; height: 40px; }
+}

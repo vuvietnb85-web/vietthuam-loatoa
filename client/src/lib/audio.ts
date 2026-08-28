@@ -1,5 +1,6 @@
 /**
  * Bản In Truyền Thanh — xử lý âm thanh cục bộ, ưu tiên lời đọc rõ và thao tác trên điện thoại.
+ * Khử nhiễu phổ chạy nền được gọi qua Worker, không yêu cầu người dùng tinh chỉnh.
  */
 
 export type TrimResult = {
@@ -7,13 +8,6 @@ export type TrimResult = {
   keptSeconds: number;
   removedSeconds: number;
   segmentCount: number;
-};
-
-export type PaEffectOptions = {
-  strength: number;
-  trimSilence: boolean;
-  thresholdDb: number;
-  holdMs: number;
 };
 
 const clamp = (value: number, lower: number, upper: number) =>
@@ -128,6 +122,127 @@ export function trimSilenceWithHysteresis(
   };
 }
 
+function fft(real: Float32Array, imag: Float32Array, inverse = false) {
+  const n = real.length;
+  for (let i = 1, j = 0; i < n; i += 1) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      [real[i], real[j]] = [real[j], real[i]];
+      [imag[i], imag[j]] = [imag[j], imag[i]];
+    }
+  }
+  for (let length = 2; length <= n; length <<= 1) {
+    const angle = (inverse ? 2 : -2) * Math.PI / length;
+    const wLengthReal = Math.cos(angle);
+    const wLengthImag = Math.sin(angle);
+    for (let start = 0; start < n; start += length) {
+      let wReal = 1;
+      let wImag = 0;
+      const half = length >> 1;
+      for (let offset = 0; offset < half; offset += 1) {
+        const even = start + offset;
+        const odd = even + half;
+        const oddReal = real[odd] * wReal - imag[odd] * wImag;
+        const oddImag = real[odd] * wImag + imag[odd] * wReal;
+        const evenReal = real[even];
+        const evenImag = imag[even];
+        real[even] = evenReal + oddReal;
+        imag[even] = evenImag + oddImag;
+        real[odd] = evenReal - oddReal;
+        imag[odd] = evenImag - oddImag;
+        const nextWReal = wReal * wLengthReal - wImag * wLengthImag;
+        wImag = wReal * wLengthImag + wImag * wLengthReal;
+        wReal = nextWReal;
+      }
+    }
+  }
+  if (inverse) {
+    for (let i = 0; i < n; i += 1) {
+      real[i] /= n;
+      imag[i] /= n;
+    }
+  }
+}
+
+/**
+ * Spectral subtraction nhẹ: tự tìm các frame yên nhất trong 1,2 giây đầu để tạo noise profile,
+ * giảm nhiễu nền theo từng dải với noise floor 12%. Không làm thay đổi sample rate hay thời lượng.
+ */
+export function spectralDenoise(input: Float32Array, sampleRate: number, amount = 0.9) {
+  if (input.length < 2048) return input.slice();
+
+  const fftSize = 1024;
+  const hopSize = 256;
+  const half = fftSize >> 1;
+  const frameCount = Math.max(1, Math.ceil((input.length - fftSize) / hopSize) + 1);
+  const window = new Float32Array(fftSize);
+  for (let i = 0; i < fftSize; i += 1) {
+    window[i] = Math.sqrt(0.5 - 0.5 * Math.cos((2 * Math.PI * i) / fftSize));
+  }
+
+  const energies = new Float32Array(Math.min(frameCount, Math.ceil((sampleRate * 1.2) / hopSize)));
+  for (let frame = 0; frame < energies.length; frame += 1) {
+    const start = frame * hopSize;
+    let energy = 0;
+    for (let i = 0; i < fftSize && start + i < input.length; i += 1) {
+      energy += input[start + i] * input[start + i];
+    }
+    energies[frame] = energy / fftSize;
+  }
+  const quietLimit = Math.max(1, Math.ceil(energies.length * 0.2));
+  const quietFrames = Array.from({ length: energies.length }, (_, index) => index)
+    .sort((a, b) => energies[a] - energies[b])
+    .slice(0, quietLimit);
+  const noise = new Float32Array(half + 1);
+  const real = new Float32Array(fftSize);
+  const imag = new Float32Array(fftSize);
+  quietFrames.forEach((frame) => {
+    real.fill(0);
+    imag.fill(0);
+    const start = frame * hopSize;
+    for (let i = 0; i < fftSize && start + i < input.length; i += 1) real[i] = input[start + i] * window[i];
+    fft(real, imag);
+    for (let bin = 0; bin <= half; bin += 1) noise[bin] += Math.hypot(real[bin], imag[bin]);
+  });
+  for (let bin = 0; bin <= half; bin += 1) noise[bin] = noise[bin] / quietFrames.length + 0.0000001;
+
+  const output = new Float32Array(input.length + fftSize);
+  const weights = new Float32Array(output.length);
+  const safeAmount = clamp(amount, 0, 1);
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    const start = frame * hopSize;
+    real.fill(0);
+    imag.fill(0);
+    for (let i = 0; i < fftSize && start + i < input.length; i += 1) real[i] = input[start + i] * window[i];
+    fft(real, imag);
+    for (let bin = 0; bin <= half; bin += 1) {
+      const magnitude = Math.hypot(real[bin], imag[bin]);
+      const snr = magnitude / noise[bin];
+      const reduction = clamp(1 - 1.55 / Math.max(1, snr), 0.12, 1);
+      const gain = Math.pow(reduction, safeAmount);
+      real[bin] *= gain;
+      imag[bin] *= gain;
+      if (bin > 0 && bin < half) {
+        real[fftSize - bin] *= gain;
+        imag[fftSize - bin] *= gain;
+      }
+    }
+    fft(real, imag, true);
+    for (let i = 0; i < fftSize && start + i < output.length; i += 1) {
+      output[start + i] += real[i] * window[i];
+      weights[start + i] += window[i] * window[i];
+    }
+  }
+
+  const result = new Float32Array(input.length);
+  for (let i = 0; i < result.length; i += 1) {
+    result[i] = weights[i] > 0.0001 ? output[i] / weights[i] : input[i];
+  }
+  return result;
+}
+
 function makeSaturationCurve(amount: number) {
   const length = 1024;
   const curve = new Float32Array(length);
@@ -148,14 +263,12 @@ export async function applyPublicAddressEffect(
   const AudioContextConstructor = window.OfflineAudioContext ||
     (window as typeof window & { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
 
-  if (!AudioContextConstructor || strength <= 0) {
-    return source.slice();
-  }
+  if (!AudioContextConstructor || strength <= 0) return source.slice();
 
   const normalizedStrength = clamp(strength / 100, 0, 1);
   const offline = new AudioContextConstructor(1, source.length, sampleRate);
   const buffer = offline.createBuffer(1, source.length, sampleRate);
-  buffer.copyToChannel(source, 0);
+  buffer.getChannelData(0).set(new Float32Array(source));
 
   const input = offline.createBufferSource();
   input.buffer = buffer;
