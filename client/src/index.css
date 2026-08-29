@@ -193,3 +193,51 @@ h1 em { color: var(--teal); }
   .app-header::after { left: 21px; right: 21px; }
   .brand-mark { width: 40px; height: 40px; }
 }
+/* Mobile hardening: full-viewport layout, safe-area support and quiet interactions. */
+:root { color-scheme: dark; }
+html, body, #root { width: 100%; min-width: 320px; min-height: 100%; }
+html { background: #080a0b; }
+body { min-height: 100svh; min-height: 100dvh; overflow-x: hidden; overscroll-behavior: none; }
+#root { min-height: 100svh; min-height: 100dvh; }
+button, [role="button"], a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+button, [role="button"], a { touch-action: manipulation; }
+img, svg, video, canvas { max-width: 100%; }
+:focus-visible { outline-offset: 3px; }
+@supports (padding: max(0px)) {
+  body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+}
+@media (max-width: 480px) {
+  body { font-size: 16px; }
+  button, [role="button"], input, textarea, select { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+
+/* Dark editorial overrides: keep the portrait recorder readable in low light. */
+:root {
+  --background: #080d12;
+  --foreground: #edf3f7;
+  --card: #111a21;
+  --card-foreground: #edf3f7;
+  --secondary: #17242c;
+  --secondary-foreground: #edf3f7;
+  --muted: #162129;
+  --muted-foreground: #aab8c2;
+  --border: #2a3a45;
+  --input: #2a3a45;
+  --ink: #edf3f7;
+  --paper: #080d12;
+  --cream: #111a21;
+}
+html, body, #root, .broadcast-shell { background: var(--paper); color: var(--ink); }
+.ink-grain { opacity: .18; background-image: radial-gradient(rgba(190,220,230,.16) .45px, transparent .75px); mix-blend-mode: screen; }
+.brand-kicker, .eyebrow.dark, .script-tip, .script-field-footer, .quiet-action, .quiet-icon { color: #a6b5bf; }
+.brand-name, h1, .script-field { color: var(--ink); }
+.privacy-stamp { border-color: rgba(190,220,230,.24); color: #d7e3e8; background: rgba(17,26,33,.78); }
+.script-field-wrap, .tuning-card, .silence-card, .result-panel { background: #111a21; color: var(--ink); border-color: #2a3a45; }
+.script-field::placeholder { color: #82929d; }
+.script-field-footer { border-color: #2a3a45; }
+.smart-card, .method-note { background: #111a21; color: var(--ink); }
+.method-note img { mix-blend-mode: screen; }
+.app-footer { border-color: #2a3a45; color: #8fa1ac; }
