@@ -1,5 +1,7 @@
 # Việt Thu Âm Loa — Loudspeaker Announcement Voice Recorder (Web App)
 
+🔗 **Live demo / Chơi thử ngay:** https://vuvietnb85-web.github.io/vietthuam-loatoa/
+
 **Việt Thu Âm Loa is a mobile web app that records your voice in the browser, automatically removes background noise and silences, and makes it sound like an outdoor loudspeaker / horn PA (loa nén), then exports a WAV file — all processed locally.**
 
 ## Features
