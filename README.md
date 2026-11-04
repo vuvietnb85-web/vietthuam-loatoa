@@ -56,3 +56,15 @@ If this project helps you, you can support the author:
 ## Author
 
 **Vu Quoc Viet (Vũ Quốc Việt)** — VXO Digital Lab, Vietnam · GitHub [@vuvietnb85-web](https://github.com/vuvietnb85-web)
+
+## 📺 Trình phát media tích hợp / Built-in media player
+
+Nút **▶︎ Media** nổi ở góc màn hình mở một bảng toàn màn hình (giao diện tiếng Việt):
+
+- **TV tiếng Việt**: một số kênh địa phương phát HLS công khai (hls.js), đã thử phát được trên trình duyệt ngày 05/11/2026. Các kênh không cho nhúng (VTV, HTV, THVL, Hà Nội, DRT, NTV…) chỉ có nút mở trang chính thức của đài. Không dùng nguồn phát lại lậu. Luồng do đài cung cấp, có thể ngừng bất cứ lúc nào.
+- **Radio**: VOV1–VOV5, VOV Giao thông Hà Nội / TP.HCM, VOV Mekong (luồng công khai của VOV).
+- **Nhạc tải lên**: chọn tệp hoặc cả thư mục; lưu trên máy bằng IndexedDB (không tải lên mạng). Dung lượng **không giới hạn cứng nhưng phụ thuộc bộ nhớ thiết bị và hạn mức trình duyệt**. Có trộn bài, lặp, điều khiển trên màn hình khoá (Media Session).
+- **Đọc EPUB** (epub.js): mục lục, cỡ chữ, nền tối, nhớ vị trí đọc.
+- **OCR ảnh / PDF scan** (tesseract.js, tiếng Việt + tiếng Anh): xử lý ngay trên máy; lần đầu cần tải dữ liệu ngôn ngữ (~vài MB). Sao chép hoặc tải về .txt.
+
+EN: a floating **▶︎ Media** button opens Vietnamese TV (legal public streams only; others link to the official site), VOV radio, a local music library stored in IndexedDB (capacity limited by device/browser storage), an EPUB reader and on-device Vietnamese/English OCR. Heavy libraries are lazy-loaded.
